@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lily & Tulip Bouquet</title>
+    <title>Grand Bouquet: 3 Lilies & Tulips</title>
     <style>
         body { 
             background: #020502; 
@@ -30,7 +30,7 @@ const canvas = document.getElementById("bouquet");
 const ctx = canvas.getContext("2d");
 const W = 720, H = 1280;
 const T_STEM = 4.0, T_B0 = 5.0, T_B1 = 14.0;
-const LOOP_AT = 26.0; 
+const LOOP_AT = 28.0; 
 const S = W / 720.0;
 const MathPI = Math.PI;
 
@@ -99,6 +99,7 @@ for (let k = 0; k < 6; k++) {
     for (let i = 0; i < NP_LILY; i++) {
         let pu = Math.pow(rng(), 0.85), pv = rng() * 2 - 1;
         let prof = Math.pow(Math.sin(MathPI * Math.pow(pu, 0.7)), 0.9);
+        
         let stops = [0, 0.2, 0.6, 1];
         let rr = interp(pu, stops, [170, 230, 250, 245]);
         let gg = interp(pu, stops, [220, 100, 210, 240]);
@@ -124,7 +125,7 @@ for (let k = 0; k < 6; k++) {
     let pts = [];
     for (let i = 0; i < NP_TULIP; i++) {
         let pu = Math.pow(rng(), 0.85), pv = rng() * 2 - 1;
-        let prof = Math.pow(Math.sin(MathPI * pu), 0.75); // Smoother, rounder profile for tulip cup
+        let prof = Math.pow(Math.sin(MathPI * pu), 0.75);
         pts.push({pu, pv, prof, noise: 0.85 + 0.3 * rng()});
     }
     tulip_petals.push({
@@ -160,8 +161,8 @@ for (let k = 0; k < 6; k++) {
     lily_stam.push({phi: (k * 60 + 38) * MathPI / 180, an});
 }
 
-// --- RENDER BUFFER (Malaki para sa 6 na bulaklak) ---
-const MAX_PTS = 250000;
+// --- RENDER BUFFER (In-increase natin to 320,000 para sa 7 flowers) ---
+const MAX_PTS = 320000;
 const ptX = new Float32Array(MAX_PTS), ptY = new Float32Array(MAX_PTS), ptZ = new Float32Array(MAX_PTS);
 const ptR = new Uint8Array(MAX_PTS), ptG = new Uint8Array(MAX_PTS), ptB = new Uint8Array(MAX_PTS);
 const indices = new Int32Array(MAX_PTS);
@@ -175,15 +176,19 @@ function addPt(x, y, z, r, g, b) {
     ptCount++;
 }
 
-// --- THE BOUQUET ARRANGEMENT ---
-const gy = H * 1.15; // Point below the screen where all stems tie together
+// --- THE GRAND BOUQUET ARRANGEMENT ---
+const gy = H * 1.15; // Convergence point (where stems tie together)
 const flowers = [
-    { type: 'lily',  color: 'star',   x: W * 0.50, y: H * 0.28, s: 1.0,  t_off: 0.0, sway: 0.0,  rot: 0.0 },  // Center Lily
-    { type: 'lily',  color: 'star',   x: W * 0.30, y: H * 0.45, s: 0.85, t_off: 2.0, sway: -1.0, rot: -0.5 }, // Left Lily
-    { type: 'tulip', color: 'red',    x: W * 0.72, y: H * 0.38, s: 0.9,  t_off: 1.5, sway: 1.2,  rot: 0.3 },  // Top Right Tulip
-    { type: 'tulip', color: 'yellow', x: W * 0.18, y: H * 0.65, s: 0.85, t_off: 3.5, sway: -1.8, rot: -0.6 }, // Bottom Left Tulip
-    { type: 'tulip', color: 'purple', x: W * 0.82, y: H * 0.60, s: 0.85, t_off: 4.5, sway: 1.8,  rot: 0.5 },  // Bottom Right Tulip
-    { type: 'tulip', color: 'pink',   x: W * 0.52, y: H * 0.68, s: 0.95, t_off: 5.5, sway: 0.2,  rot: 0.1 },  // Front Center Tulip
+    // 3 LILIES (Crown / Focal Points)
+    { type: 'lily',  color: 'star',   x: W * 0.50, y: H * 0.25, s: 1.00, t_off: 0.0, sway: 0.0,  rot: 0.0 },   // Top Center Lily
+    { type: 'lily',  color: 'star',   x: W * 0.25, y: H * 0.42, s: 0.85, t_off: 1.8, sway: -1.0, rot: -0.4 },  // Left Lily
+    { type: 'lily',  color: 'star',   x: W * 0.75, y: H * 0.38, s: 0.90, t_off: 3.0, sway: 1.2,  rot: 0.5 },   // Right Lily
+    
+    // 4 TULIPS (Accents / Lower Fillers)
+    { type: 'tulip', color: 'red',    x: W * 0.15, y: H * 0.25, s: 0.75, t_off: 2.5, sway: -1.5, rot: -0.8 },  // High Left Tulip
+    { type: 'tulip', color: 'yellow', x: W * 0.20, y: H * 0.65, s: 0.85, t_off: 4.5, sway: -1.8, rot: -0.6 },  // Bottom Left Tulip
+    { type: 'tulip', color: 'purple', x: W * 0.82, y: H * 0.62, s: 0.85, t_off: 5.5, sway: 1.8,  rot: 0.5 },   // Bottom Right Tulip
+    { type: 'tulip', color: 'pink',   x: W * 0.52, y: H * 0.68, s: 0.95, t_off: 6.5, sway: 0.2,  rot: 0.1 },   // Front Center Tulip
 ];
 
 function getTulipColor(c_name, pu, noise) {
@@ -193,7 +198,7 @@ function getTulipColor(c_name, pu, noise) {
     else if (c_name === 'purple') { r = lerp(160, 80, pu); g = lerp(30, 0, pu); b = lerp(180, 100, pu); }
     else if (c_name === 'pink') { r = lerp(255, 220, pu); g = lerp(100, 40, pu); b = lerp(160, 90, pu); }
     
-    // Greenish-yellow base blending
+    // Greenish-yellow base blending for realism
     let base_mix = Math.max(0, 1 - pu * 4.0); 
     r = lerp(r, 160, base_mix); g = lerp(g, 220, base_mix); b = lerp(b, 80, base_mix);
     return [r * noise, g * noise, b * noise];
@@ -224,7 +229,7 @@ function render(t) {
             }
         }
 
-        // LEAVES (More dense for bouquet)
+        // LEAVES
         for (let i = 0; i < leaves.length; i++) {
             let lf = leaves[i];
             let lg = Math.max(0, Math.min(1, (g_t - lf.s0) * 2.5));
@@ -235,7 +240,7 @@ function render(t) {
             for (let j = 0; j < lf.pts.length; j++) {
                 let pt = lf.pts[j];
                 let rr = interp(pt.u, m.us, m.r), hh = interp(pt.u, m.us, m.h);
-                let wid = 18 * S * pt.prof * lg; // Wider leaves for bouquet feel
+                let wid = 18 * S * pt.prof * lg;
                 addPt(bx + (lf.side * (rr + pt.v * wid * 0.35) + sway_lf * hh * lf.side) * inst.s, 
                       by + (-hh + pt.v * wid) * inst.s, -90 * inst.s, 
                       pt.r * pt.noise, pt.g * pt.noise, pt.b * pt.noise);
@@ -280,7 +285,7 @@ function render(t) {
                 }
             }
 
-            // STAMENS (Inside details)
+            // STAMENS
             if (e > 0.28) {
                 if (inst.type === 'lily') {
                     let sr = smooth((e - 0.28) / 0.4);
@@ -307,7 +312,6 @@ function render(t) {
                         }
                     }
                 } else {
-                    // Tulip Stamens (Darker, grouped in center)
                     for(let k=0; k<6; k++) {
                         let ph = k * 60 * MathPI / 180 + inst.rot;
                         let Ls = 65 * S * e;
@@ -319,7 +323,7 @@ function render(t) {
                             addPt(hx + Xp * inst.s, hy - sy * inst.s, (Zp + 2) * inst.s, 200, 220, 150);
                             
                             if (u > 0.8) {
-                                addPt(hx + Xp * inst.s + (rng()-0.5)*8*S, hy - sy * inst.s, (Zp + 4) * inst.s, 40, 20, 20); // Dark pollen
+                                addPt(hx + Xp * inst.s + (rng()-0.5)*8*S, hy - sy * inst.s, (Zp + 4) * inst.s, 40, 20, 20); 
                             }
                         }
                     }
@@ -328,11 +332,11 @@ function render(t) {
         }
     } 
 
-    // Sort by Depth for Perfect 3D Overlapping!
+    // Depth Sorting
     let activeIndices = indices.subarray(0, ptCount);
     activeIndices.sort((a, b) => ptZ[a] - ptZ[b]);
 
-    // DRAW TO CANVAS
+    // Draw Buffer
     imgData.data.fill(0); 
     let data = imgData.data;
     
@@ -357,7 +361,7 @@ function render(t) {
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, W, H);
 
-    ctx.filter = "blur(0.8px)"; // Smooth painting effect
+    ctx.filter = "blur(0.8px)"; 
     ctx.drawImage(flCanvas, 0, 0);
     ctx.filter = "none";
 }
@@ -377,7 +381,7 @@ function animate(now) {
     lastTime = now;
     if (!paused) {
         time += Math.min(dt, 0.1);
-        if (LOOP_AT && time > LOOP_AT) time = 0; // Loops back gracefully
+        if (LOOP_AT && time > LOOP_AT) time = 0; 
     }
     render(time);
     requestAnimationFrame(animate);
