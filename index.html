@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pointillism Lily</title>
+    <title>Lily & Tulip Bouquet</title>
     <style>
         body { 
-            background: #04020a; 
+            background: #020502; 
             margin: 0; 
             display: flex; 
             justify-content: center; 
@@ -22,29 +22,24 @@
     </style>
 </head>
 <body>
-    <canvas id="lily" width="720" height="1280"></canvas>
+    <canvas id="bouquet" width="720" height="1280"></canvas>
 
 <script>
 // --- CORE CONSTANTS ---
-const canvas = document.getElementById("lily");
+const canvas = document.getElementById("bouquet");
 const ctx = canvas.getContext("2d");
 const W = 720, H = 1280;
-const T_STEM = 4.0, T_B0 = 5.0, T_B1 = 15.0;
-const LOOP_AT = 0;
-const BG = [4, 2, 10];
+const T_STEM = 4.0, T_B0 = 5.0, T_B1 = 14.0;
+const LOOP_AT = 26.0; 
 const S = W / 720.0;
-const gx = W / 2, gy = H * 0.82;
 const MathPI = Math.PI;
-const HS = 380 * S;
 
-// --- FAST IMAGE DATA ---
-let imgData = ctx.createImageData(W, H);
-let offCanvas = document.createElement("canvas");
-offCanvas.width = W / 10;
-offCanvas.height = H / 10;
-let offCtx = offCanvas.getContext("2d");
+const flCanvas = document.createElement("canvas");
+flCanvas.width = W; flCanvas.height = H;
+const flCtx = flCanvas.getContext("2d");
+let imgData = flCtx.createImageData(W, H);
 
-// --- RANDOM NUMBER GENERATOR (Seeded like Python) ---
+// --- RANDOM NUMBER GENERATOR ---
 function mulberry32(a) {
     return function() {
         var t = a += 0x6D2B79F5;
@@ -58,8 +53,7 @@ const rng = mulberry32(11);
 function randomNormal(mean = 0, stdDev = 1) {
     let u1 = rng(), u2 = rng();
     while (u1 === 0) u1 = rng();
-    let z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * MathPI * u2);
-    return z0 * stdDev + mean;
+    return Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * MathPI * u2) * stdDev + mean;
 }
 
 // --- MATH UTILITIES ---
@@ -67,11 +61,7 @@ function smooth(x) {
     x = Math.max(0, Math.min(1, x));
     return x * x * (3 - 2 * x);
 }
-
-function lerp(a, b, t) {
-    return a + (b - a) * t;
-}
-
+function lerp(a, b, t) { return a + (b - a) * t; }
 function interp(x, xp, fp) {
     if (x <= xp[0]) return fp[0];
     if (x >= xp[xp.length - 1]) return fp[fp.length - 1];
@@ -85,12 +75,8 @@ function interp(x, xp, fp) {
 }
 
 function midrib(L, a0, curl, K=40) {
-    let us = new Float32Array(K + 1);
-    let r = new Float32Array(K + 1);
-    let h = new Float32Array(K + 1);
-    let ds = L / K;
-    let sum_r = 0, sum_h = 0;
-    
+    let us = new Float32Array(K + 1), r = new Float32Array(K + 1), h = new Float32Array(K + 1);
+    let ds = L / K, sum_r = 0, sum_h = 0;
     for (let i = 0; i <= K; i++) {
         let u = i / K;
         us[i] = u;
@@ -98,115 +84,84 @@ function midrib(L, a0, curl, K=40) {
             let al = a0 + curl * Math.pow(u, 1.6);
             sum_r += Math.sin(al) * ds;
             sum_h += Math.cos(al) * ds;
-            r[i] = sum_r;
-            h[i] = sum_h;
+            r[i] = sum_r; h[i] = sum_h;
         }
     }
     return {us, r, h};
 }
 
-// --- SETUP PARTICLES (Translation of Numpy Arrays) ---
-const NP = 2300;
-let petals = [];
+// --- FLOWER GENERATORS ---
+const NP_LILY = 3200;
+let lily_petals = [];
 for (let k = 0; k < 6; k++) {
     let outer = (k % 2 === 0);
     let pts = [];
-    for (let i = 0; i < NP; i++) {
-        let pu = Math.pow(rng(), 0.85);
-        let pv = rng() * 2 - 1;
+    for (let i = 0; i < NP_LILY; i++) {
+        let pu = Math.pow(rng(), 0.85), pv = rng() * 2 - 1;
         let prof = Math.pow(Math.sin(MathPI * Math.pow(pu, 0.7)), 0.9);
+        let stops = [0, 0.2, 0.6, 1];
+        let rr = interp(pu, stops, [170, 230, 250, 245]);
+        let gg = interp(pu, stops, [220, 100, 210, 240]);
+        let bb = interp(pu, stops, [120, 140, 220, 240]);
         
-        let stops = [0, .35, .7, 1];
-        let rr = interp(pu, stops, [205, 255, 255, 255]);
-        let gg = interp(pu, stops, [40, 95, 150, 195]);
-        let bb = interp(pu, stops, [125, 165, 205, 228]);
+        let mid = (Math.abs(pv) < 0.15) && (pu > 0.1) && (pu < 0.7);
+        if (mid) { rr *= 0.85; gg *= 0.6; bb *= 0.7; } 
+        let spot = (rng() < 0.12) && (pu > 0.15) && (pu < 0.6) && (Math.abs(pv) < 0.55);
+        if (spot) { rr = 120; gg = 20; bb = 40; } 
         
-        let mid = (Math.abs(pv) < 0.07) && (pu < 0.55);
-        if (mid) { rr = 235; gg = 225; bb = 150; }
-        else {
-            let spot = (rng() < 0.10) && (pu < 0.6) && (Math.abs(pv) < 0.75);
-            if (spot) { rr = 140; gg = 15; bb = 80; }
-        }
-        
-        if (Math.abs(pv) > 0.88) { rr *= 1.08; gg *= 1.08; bb *= 1.08; }
-        let noise = 0.82 + 0.35 * rng();
-        pts.push({pu, pv, prof, r: rr * noise, g: gg * noise, b: bb * noise});
+        pts.push({pu, pv, prof, r: rr, g: gg, b: bb, noise: 0.85 + 0.3 * rng()});
     }
-    petals.push({
-        phi: (k * 60 + 8) * MathPI / 180,
-        L: (outer ? 300 : 280) * S,
-        Wm: (outer ? 64 : 72) * S,
-        ac: outer ? 0.10 : 0.05,
-        ao: outer ? 1.05 : 0.82,
-        curl: outer ? 0.95 : 0.75,
-        pts: pts
+    lily_petals.push({
+        phi: (k * 60 + 8) * MathPI / 180, L: (outer ? 280 : 260) * S, Wm: (outer ? 64 : 72) * S,
+        ac: 0.10, ao: outer ? 1.1 : 0.85, curl: outer ? 0.9 : 0.7, pts: pts
     });
 }
 
-const NS = 3200;
+const NP_TULIP = 3500;
+let tulip_petals = [];
+for (let k = 0; k < 6; k++) {
+    let outer = (k % 2 === 0);
+    let pts = [];
+    for (let i = 0; i < NP_TULIP; i++) {
+        let pu = Math.pow(rng(), 0.85), pv = rng() * 2 - 1;
+        let prof = Math.pow(Math.sin(MathPI * pu), 0.75); // Smoother, rounder profile for tulip cup
+        pts.push({pu, pv, prof, noise: 0.85 + 0.3 * rng()});
+    }
+    tulip_petals.push({
+        phi: (k * 60 + (outer ? 0 : 30)) * MathPI / 180, L: (outer ? 190 : 170) * S, Wm: (outer ? 95 : 80) * S,
+        ac: 0.02, ao: outer ? 0.35 : 0.15, curl: 0.15, pts: pts
+    });
+}
+
 let stems = [];
-for (let i = 0; i < NS; i++) {
-    let s = rng();
-    let dx = randomNormal(0, 1) * (3.2 * S) * (1 - 0.5 * s);
-    let r = lerp(40, 120, s), g = lerp(150, 215, s), b = lerp(95, 120, s);
-    let noise = 0.8 + 0.4 * rng();
-    stems.push({s, dx, r: r * noise, g: g * noise, b: b * noise});
+for (let i = 0; i < 3000; i++) {
+    let s = rng(), dx = randomNormal(0, 1) * (4.0 * S) * (1 - 0.5 * s);
+    stems.push({s, dx, r: lerp(30, 60, s), g: lerp(100, 150, s), b: lerp(30, 60, s), noise: 0.8 + 0.4 * rng()});
 }
 
 let leaves = [];
-let lf_data = [[0.10, 190, 1], [0.24, 175, -1], [0.40, 150, 1], [0.56, 120, -1]];
+let lf_data = [[0.2, 220, 1], [0.4, 200, -1], [0.6, 160, 1]];
 for (let i = 0; i < lf_data.length; i++) {
     let pts = [];
-    for (let j = 0; j < 900; j++) {
+    for (let j = 0; j < 1200; j++) {
         let u = Math.pow(rng(), 0.9), v = rng() * 2 - 1;
         let prof = Math.pow(Math.sin(MathPI * Math.pow(u, 0.8)), 0.8);
-        let r = lerp(40, 140, u), g = lerp(160, 235, u), b = lerp(100, 140, u);
-        if (Math.abs(v) < 0.08) { r = 190; g = 240; b = 170; }
-        let noise = 0.8 + 0.4 * rng();
-        pts.push({u, v, prof, r: r * noise, g: g * noise, b: b * noise});
+        let r = lerp(20, 60, u), g = lerp(80, 140, u), b = lerp(20, 50, u);
+        if (Math.abs(v) < 0.05) { r = 90; g = 160; b = 70; }
+        pts.push({u, v, prof, r, g, b, noise: 0.8 + 0.4 * rng()});
     }
     leaves.push({s0: lf_data[i][0], L: lf_data[i][1] * S, side: lf_data[i][2], pts});
 }
 
-const NG = 5000;
-let soil = [];
-for (let i = 0; i < NG; i++) {
-    let dx = (rng() * 2 - 1) * 340 * S;
-    let mound = (1 - Math.pow(dx / (340 * S), 2)) * 55 * S;
-    let y = gy - mound * Math.pow(rng(), 0.5) + randomNormal(0, 1.5);
-    soil.push({dx, y, r: lerp(70, 140, rng()), g: lerp(55, 100, rng()), b: lerp(80, 120, rng())});
-}
-
-let dust = [];
-for (let i = 0; i < 450; i++) {
-    dust.push({x: rng() * W, y: rng() * H, sp: lerp(6, 22, rng()) * S, ph: rng() * 6.28, f: lerp(1, 4, rng())});
-}
-
-let ang_ring = new Float32Array(1100);
-for (let i = 0; i < 1100; i++) ang_ring[i] = rng() * 6.28;
-
-let ang_c = [];
+let lily_stam = [];
 for (let k = 0; k < 6; k++) {
-    let arr = new Float32Array(260);
-    for (let i = 0; i < 260; i++) arr[i] = rng() * 6.28;
-    ang_c.push(arr);
+    let an = [];
+    for (let i = 0; i < 40; i++) an.push([randomNormal(0, 1), randomNormal(0, 1), rng()]);
+    lily_stam.push({phi: (k * 60 + 38) * MathPI / 180, an});
 }
 
-let fireflies = [];
-for (let i = 0; i < 140; i++) {
-    fireflies.push({off: rng(), ph: rng() * 6.28, dr: (rng() * 160 - 80) * S, sp: lerp(0.05, 0.12, rng())});
-}
-
-let stam = [];
-for (let k = 0; k < 6; k++) {
-    let jit = [], an = [];
-    for (let i = 0; i < 45; i++) jit.push(randomNormal(0, 1));
-    for (let i = 0; i < 35; i++) an.push([randomNormal(0, 1), randomNormal(0, 1), rng()]);
-    stam.push({phi: (k * 60 + 38) * MathPI / 180, jit, an});
-}
-
-// --- RENDER BUFFER (Fast Z-Sorting) ---
-const MAX_PTS = 45000;
+// --- RENDER BUFFER (Malaki para sa 6 na bulaklak) ---
+const MAX_PTS = 250000;
 const ptX = new Float32Array(MAX_PTS), ptY = new Float32Array(MAX_PTS), ptZ = new Float32Array(MAX_PTS);
 const ptR = new Uint8Array(MAX_PTS), ptG = new Uint8Array(MAX_PTS), ptB = new Uint8Array(MAX_PTS);
 const indices = new Int32Array(MAX_PTS);
@@ -220,131 +175,166 @@ function addPt(x, y, z, r, g, b) {
     ptCount++;
 }
 
-// --- RENDER LOGIC ---
-function stem_x(s, t) {
-    return gx + 30 * S * Math.sin(2.2 * s) + (10 * S * Math.sin(0.9 * t)) * s * s;
+// --- THE BOUQUET ARRANGEMENT ---
+const gy = H * 1.15; // Point below the screen where all stems tie together
+const flowers = [
+    { type: 'lily',  color: 'star',   x: W * 0.50, y: H * 0.28, s: 1.0,  t_off: 0.0, sway: 0.0,  rot: 0.0 },  // Center Lily
+    { type: 'lily',  color: 'star',   x: W * 0.30, y: H * 0.45, s: 0.85, t_off: 2.0, sway: -1.0, rot: -0.5 }, // Left Lily
+    { type: 'tulip', color: 'red',    x: W * 0.72, y: H * 0.38, s: 0.9,  t_off: 1.5, sway: 1.2,  rot: 0.3 },  // Top Right Tulip
+    { type: 'tulip', color: 'yellow', x: W * 0.18, y: H * 0.65, s: 0.85, t_off: 3.5, sway: -1.8, rot: -0.6 }, // Bottom Left Tulip
+    { type: 'tulip', color: 'purple', x: W * 0.82, y: H * 0.60, s: 0.85, t_off: 4.5, sway: 1.8,  rot: 0.5 },  // Bottom Right Tulip
+    { type: 'tulip', color: 'pink',   x: W * 0.52, y: H * 0.68, s: 0.95, t_off: 5.5, sway: 0.2,  rot: 0.1 },  // Front Center Tulip
+];
+
+function getTulipColor(c_name, pu, noise) {
+    let r, g, b;
+    if (c_name === 'red') { r = lerp(220, 140, pu); g = lerp(20, 0, pu); b = lerp(30, 10, pu); }
+    else if (c_name === 'yellow') { r = lerp(250, 240, pu); g = lerp(210, 160, pu); b = lerp(20, 0, pu); }
+    else if (c_name === 'purple') { r = lerp(160, 80, pu); g = lerp(30, 0, pu); b = lerp(180, 100, pu); }
+    else if (c_name === 'pink') { r = lerp(255, 220, pu); g = lerp(100, 40, pu); b = lerp(160, 90, pu); }
+    
+    // Greenish-yellow base blending
+    let base_mix = Math.max(0, 1 - pu * 4.0); 
+    r = lerp(r, 160, base_mix); g = lerp(g, 220, base_mix); b = lerp(b, 80, base_mix);
+    return [r * noise, g * noise, b * noise];
 }
-function stem_y(s) { return gy - s * HS; }
 
 function render(t) {
     ptCount = 0;
-    let g_t = smooth(t / T_STEM);
-    let e = smooth((t - T_B0) / (T_B1 - T_B0));
-    let rev = smooth((t - T_STEM + 0.3) / 1.6);
-    let hx = stem_x(1.0, t), hy = stem_y(1.0);
 
-    for (let i = 0; i < dust.length; i++) {
-        let d = dust[i];
-        let tw = 0.35 + 0.65 * (Math.sin(t * d.f + d.ph) > 0.2 ? 1 : 0);
-        let yy = (d.y - t * d.sp) % H; if (yy < 0) yy += H;
-        addPt(d.x, yy, -1000, 255 * tw * 0.55, 200 * tw * 0.55, 235 * tw * 0.55);
-    }
-
-    let ha = smooth((t - T_B0 + 1.5) / 4.0) * 0.9;
-    if (ha > 0.01) {
-        let cx0 = hx, cy0 = hy - 90 * S, R = 300 * S, rot = t * 0.12;
-        for (let i = 0; i < ang_ring.length; i++) {
-            let a = ang_ring[i] + rot;
-            addPt(cx0 + R * Math.cos(a), cy0 + R * Math.sin(a), -900, 255*ha*0.7, 190*ha*0.7, 225*ha*0.7);
-        }
-        for (let k = 0; k < 6; k++) {
-            let ca = rot * 1.3 + k * MathPI / 3;
-            let ox = cx0 + R * Math.cos(ca), oy = cy0 + R * Math.sin(ca);
-            for (let i = 0; i < ang_c[k].length; i++) {
-                let a = ang_c[k][i] + rot;
-                addPt(ox + R * 0.5 * Math.cos(a), oy + R * 0.5 * Math.sin(a), -900, 255*ha*0.45, 170*ha*0.45, 215*ha*0.45);
-            }
-        }
-    }
-
-    for (let i = 0; i < soil.length; i++) addPt(soil[i].dx + gx, soil[i].y, -500, soil[i].r * 0.8, soil[i].g * 0.8, soil[i].b * 0.8);
-    for (let i = 0; i < stems.length; i++) if (stems[i].s <= g_t) addPt(stem_x(stems[i].s, t) + stems[i].dx, stem_y(stems[i].s), -100, stems[i].r, stems[i].g, stems[i].b);
-
-    for (let i = 0; i < leaves.length; i++) {
-        let lf = leaves[i];
-        let lg = Math.max(0, Math.min(1, (g_t - lf.s0) * 2.5));
-        if (lg <= 0.01) continue;
-        let m = midrib(lf.L * lg, 0.85, 1.1);
-        let bx = stem_x(lf.s0, t), by = stem_y(lf.s0);
-        let sway = Math.sin(t * 1.2 + lf.s0 * 5) * 0.03;
-        for (let j = 0; j < lf.pts.length; j++) {
-            let pt = lf.pts[j];
-            let rr = interp(pt.u, m.us, m.r), hh = interp(pt.u, m.us, m.h);
-            let wid = 15 * S * pt.prof * lg;
-            let x = bx + lf.side * (rr + pt.v * wid * 0.35) + sway * hh * lf.side;
-            let y = by - hh + pt.v * wid;
-            addPt(x, y, -90, pt.r, pt.g, pt.b);
-        }
-    }
-
-    if (rev > 0.01) {
-        let cp = Math.cos(0.25 + t * 0.22), sp = Math.sin(0.25 + t * 0.22);
-        let ct = Math.cos(0.5), st = Math.sin(0.5);
-        let sway_t = Math.sin(t * 0.8) * 0.02;
+    for (let l_idx = 0; l_idx < flowers.length; l_idx++) {
+        let inst = flowers[l_idx];
+        let lt = Math.max(0, t - inst.t_off);
         
-        for (let i = 0; i < petals.length; i++) {
-            let p = petals[i];
-            let Ls = p.L * (0.45 + 0.55 * e) * (0.35 + 0.65 * rev);
-            let m = midrib(Ls, lerp(p.ac, p.ao, e), (0.12 + 0.88 * e) * p.curl);
-            for (let j = 0; j < p.pts.length; j++) {
-                let pt = p.pts[j];
-                if (pt.pu > rev) continue;
-                let rr = interp(pt.pu, m.us, m.r), hh = interp(pt.pu, m.us, m.h);
-                let wid = p.Wm * (0.55 + 0.45 * e) * pt.prof * (0.35 + 0.65 * rev);
-                let X = rr * Math.cos(p.phi) - pt.pv * wid * Math.sin(p.phi);
-                let Z = rr * Math.sin(p.phi) + pt.pv * wid * Math.cos(p.phi);
-                let Y = hh + (pt.pv * pt.pv) * wid * (0.30 * (1 - e) - 0.25 * e);
-                let Xp = X * cp + Z * sp, Zp = -X * sp + Z * cp, sy = Y * ct - Zp * st;
-                let shade = 0.55 + 0.45 * Math.max(0, Math.min(1, Zp / p.L * 0.8 + 0.5));
-                let tint = (1 - e) * Math.max(0, Math.min(1, pt.pu * 1.3)) * 0.6;
-                addPt(hx + Xp + sway_t * sy, hy - sy, Zp, (pt.r * (1-tint) + 135 * tint) * shade, (pt.g * (1-tint) + 205 * tint) * shade, (pt.b * (1-tint) + 125 * tint) * shade);
+        let g_t = smooth(lt / T_STEM);
+        let e = smooth((lt - T_B0) / (T_B1 - T_B0));
+        let rev = smooth((lt - T_STEM + 0.3) / 1.6);
+        
+        let getX = (s) => lerp(W/2, inst.x, s) + 40 * S * Math.sin(MathPI * s) * inst.sway + (10 * S * Math.sin(0.9 * t)) * s * s;
+        let getY = (s) => lerp(gy, inst.y, s);
+
+        let hx = getX(1.0), hy = getY(1.0);
+
+        // STEMS
+        for (let i = 0; i < stems.length; i++) {
+            if (stems[i].s <= g_t) {
+                let bx = getX(stems[i].s), by = getY(stems[i].s);
+                let col = stems[i];
+                addPt(bx + col.dx * inst.s, by, -100, col.r * col.noise, col.g * col.noise, col.b * col.noise);
             }
         }
 
-        if (e > 0.28) {
-            let sr = smooth((e - 0.28) / 0.4);
-            for (let k = 0; k < stam.length; k++) {
-                let sdat = stam[k];
-                let m = midrib(215 * S * (0.4 + 0.6 * e) * sr, lerp(0.15, 0.62, e), 0.55 * e);
-                for (let i = 0; i < 45; i++) {
-                    let u = rng();
-                    let rr = interp(u, m.us, m.r), hh = interp(u, m.us, m.h);
-                    let X = rr * Math.cos(sdat.phi), Z = rr * Math.sin(sdat.phi);
-                    let Xp = X * cp + Z * sp, Zp = -X * sp + Z * cp, sy = hh * ct - Zp * st;
-                    addPt(hx + Xp, hy - sy, Zp + 5, 245, 235, 200);
+        // LEAVES (More dense for bouquet)
+        for (let i = 0; i < leaves.length; i++) {
+            let lf = leaves[i];
+            let lg = Math.max(0, Math.min(1, (g_t - lf.s0) * 2.5));
+            if (lg <= 0.01) continue;
+            let m = midrib(lf.L * lg, 0.85, 1.1);
+            let bx = getX(lf.s0), by = getY(lf.s0);
+            let sway_lf = Math.sin(lt * 1.2 + lf.s0 * 5) * 0.03;
+            for (let j = 0; j < lf.pts.length; j++) {
+                let pt = lf.pts[j];
+                let rr = interp(pt.u, m.us, m.r), hh = interp(pt.u, m.us, m.h);
+                let wid = 18 * S * pt.prof * lg; // Wider leaves for bouquet feel
+                addPt(bx + (lf.side * (rr + pt.v * wid * 0.35) + sway_lf * hh * lf.side) * inst.s, 
+                      by + (-hh + pt.v * wid) * inst.s, -90 * inst.s, 
+                      pt.r * pt.noise, pt.g * pt.noise, pt.b * pt.noise);
+            }
+        }
+
+        // PETALS
+        if (rev > 0.01) {
+            let cp = Math.cos(0.25 + lt * 0.22), sp = Math.sin(0.25 + lt * 0.22);
+            let ct = Math.cos(0.5), st = Math.sin(0.5);
+            let sway_t = Math.sin(lt * 0.8) * 0.02;
+            
+            let p_arr = inst.type === 'lily' ? lily_petals : tulip_petals;
+
+            for (let i = 0; i < p_arr.length; i++) {
+                let p = p_arr[i];
+                let Ls = p.L * (inst.type === 'lily' ? (0.45 + 0.55 * e) : (0.5 + 0.5 * e)) * (0.35 + 0.65 * rev);
+                let m = midrib(Ls, lerp(p.ac, p.ao, e), (0.12 + 0.88 * e) * p.curl);
+                
+                for (let j = 0; j < p.pts.length; j++) {
+                    let pt = p.pts[j];
+                    if (pt.pu > rev) continue;
+                    let rr = interp(pt.pu, m.us, m.r), hh = interp(pt.pu, m.us, m.h);
+                    let wid = p.Wm * (0.55 + 0.45 * e) * pt.prof * (0.35 + 0.65 * rev);
+                    
+                    let ph = p.phi + inst.rot;
+                    let X = rr * Math.cos(ph) - pt.pv * wid * Math.sin(ph);
+                    let Z = rr * Math.sin(ph) + pt.pv * wid * Math.cos(ph);
+                    let Y = hh + (pt.pv * pt.pv) * wid * (0.30 * (1 - e) - 0.25 * e);
+                    
+                    let Xp = X * cp + Z * sp, Zp = -X * sp + Z * cp, sy = Y * ct - Zp * st;
+                    let shade = 0.45 + 0.55 * Math.max(0, Math.min(1, Zp / p.L * 0.8 + 0.5));
+                    
+                    let rgb;
+                    if (inst.type === 'lily') {
+                        rgb = [pt.r * pt.noise, pt.g * pt.noise, pt.b * pt.noise];
+                    } else {
+                        rgb = getTulipColor(inst.color, pt.pu, pt.noise);
+                    }
+
+                    addPt(hx + (Xp + sway_t * sy) * inst.s, hy - sy * inst.s, Zp * inst.s, rgb[0] * shade, rgb[1] * shade, rgb[2] * shade);
                 }
-                let lr = m.r[m.r.length-1], lh = m.h[m.h.length-1];
-                let tx = lr * Math.cos(sdat.phi), tz = lr * Math.sin(sdat.phi);
-                let txp = tx * cp + tz * sp, tzp = -tx * sp + tz * cp, tsy = lh * ct - tzp * st;
-                for (let i = 0; i < 35; i++) {
-                    let an = sdat.an[i], f = 0.8 + 0.4 * an[2];
-                    addPt(hx + txp + an[0] * 5 * S * 1.6, hy - tsy + an[1] * 5 * S * 0.7, tzp + 6, 255 * f, 150 * f, 40 * f);
+            }
+
+            // STAMENS (Inside details)
+            if (e > 0.28) {
+                if (inst.type === 'lily') {
+                    let sr = smooth((e - 0.28) / 0.4);
+                    for (let k = 0; k < lily_stam.length; k++) {
+                        let sdat = lily_stam[k];
+                        let m = midrib(215 * S * (0.4 + 0.6 * e) * sr, lerp(0.15, 0.62, e), 0.55 * e);
+                        let ph = sdat.phi + inst.rot;
+                        
+                        for (let i = 0; i < 40; i++) { 
+                            let u = rng();
+                            let X = interp(u, m.us, m.r) * Math.cos(ph), Z = interp(u, m.us, m.r) * Math.sin(ph);
+                            let Xp = X * cp + Z * sp, Zp = -X * sp + Z * cp;
+                            addPt(hx + Xp * inst.s, hy - (interp(u, m.us, m.h) * ct - Zp * st) * inst.s, (Zp + 5) * inst.s, 200, 240, 180); 
+                        }
+                        
+                        let lr = m.r[m.r.length-1], lh = m.h[m.h.length-1];
+                        let txp = lr * Math.cos(ph) * cp + lr * Math.sin(ph) * sp;
+                        let tzp = -lr * Math.cos(ph) * sp + lr * Math.sin(ph) * cp;
+                        let tsy = lh * ct - tzp * st;
+                        
+                        for (let i = 0; i < 40; i++) { 
+                            let an = sdat.an[i], f = 0.7 + 0.3 * an[2];
+                            addPt(hx + (txp + an[0] * 6 * S) * inst.s, hy - (tsy - an[1] * 4 * S) * inst.s, (tzp + 6) * inst.s, 160 * f, 60 * f, 10 * f); 
+                        }
+                    }
+                } else {
+                    // Tulip Stamens (Darker, grouped in center)
+                    for(let k=0; k<6; k++) {
+                        let ph = k * 60 * MathPI / 180 + inst.rot;
+                        let Ls = 65 * S * e;
+                        for(let i=0; i<30; i++) {
+                            let u = rng(), rr = u * 15 * S, hh = u * Ls;
+                            let Xp = (rr * Math.cos(ph)) * cp + (rr * Math.sin(ph)) * sp;
+                            let Zp = -(rr * Math.cos(ph)) * sp + (rr * Math.sin(ph)) * cp;
+                            let sy = hh * ct - Zp * st;
+                            addPt(hx + Xp * inst.s, hy - sy * inst.s, (Zp + 2) * inst.s, 200, 220, 150);
+                            
+                            if (u > 0.8) {
+                                addPt(hx + Xp * inst.s + (rng()-0.5)*8*S, hy - sy * inst.s, (Zp + 4) * inst.s, 40, 20, 20); // Dark pollen
+                            }
+                        }
+                    }
                 }
             }
         }
-    }
+    } 
 
-    if (e > 0.6) {
-        let fa = smooth((e - 0.6) / 0.4);
-        for (let i = 0; i < fireflies.length; i++) {
-            let f = fireflies[i], q = (t * f.sp + f.off) % 1.0;
-            let fx = hx + f.dr * q + Math.sin(q * 7 + f.ph) * 25 * S;
-            let fy = (hy - 110 * S) + q * (gy - hy + 90 * S);
-            let fade = (1 - q) * fa;
-            let c = f.ph > 3.1 ? [255, 190, 80] : [255, 150, 205];
-            addPt(fx, fy, 300, c[0] * fade, c[1] * fade, c[2] * fade);
-        }
-    }
-
-    // Sort by Z
+    // Sort by Depth for Perfect 3D Overlapping!
     let activeIndices = indices.subarray(0, ptCount);
     activeIndices.sort((a, b) => ptZ[a] - ptZ[b]);
 
-    // Draw to Canvas
+    // DRAW TO CANVAS
+    imgData.data.fill(0); 
     let data = imgData.data;
-    for (let i = 0; i < data.length; i += 4) {
-        data[i] = BG[0]; data[i+1] = BG[1]; data[i+2] = BG[2]; data[i+3] = 255;
-    }
     
     for (let k = 0; k < ptCount; k++) {
         let i = activeIndices[k];
@@ -352,20 +342,24 @@ function render(t) {
         if (x >= 0 && x < W - 1 && y >= 0 && y < H - 1) {
             let idx = (y * W + x) * 4;
             let r = ptR[i], g = ptG[i], b = ptB[i];
-            // Thicken pixels (same as buf[ix+1,iy] & buf[ix,iy+1] in Pygame)
-            data[idx] = r; data[idx+1] = g; data[idx+2] = b;
-            data[idx+4] = r; data[idx+5] = g; data[idx+6] = b;
-            data[idx + W*4] = r; data[idx + W*4 + 1] = g; data[idx + W*4 + 2] = b;
+            
+            data[idx] = r; data[idx+1] = g; data[idx+2] = b; data[idx+3] = 255;
+            data[idx+4] = r; data[idx+5] = g; data[idx+6] = b; data[idx+7] = 255;
+            data[idx + W*4] = r; data[idx + W*4 + 1] = g; data[idx + W*4 + 2] = b; data[idx + W*4 + 3] = 255;
         }
     }
-    ctx.putImageData(imgData, 0, 0);
+    flCtx.putImageData(imgData, 0, 0);
 
-    // Glow Effect
-    offCtx.clearRect(0, 0, offCanvas.width, offCanvas.height);
-    offCtx.drawImage(canvas, 0, 0, offCanvas.width, offCanvas.height);
-    ctx.globalCompositeOperation = "lighter";
-    ctx.drawImage(offCanvas, 0, 0, W, H);
-    ctx.globalCompositeOperation = "source-over";
+    // BACKGROUND
+    let bgGrad = ctx.createRadialGradient(W/2, H/2, H*0.2, W/2, H/2, H*0.8);
+    bgGrad.addColorStop(0, "#121a12"); 
+    bgGrad.addColorStop(1, "#020502"); 
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.filter = "blur(0.8px)"; // Smooth painting effect
+    ctx.drawImage(flCanvas, 0, 0);
+    ctx.filter = "none";
 }
 
 // --- MAIN LOOP ---
@@ -375,13 +369,15 @@ window.addEventListener("keydown", (e) => {
     if (e.key === " ") paused = !paused;
 });
 
+window.addEventListener("touchstart", () => paused = !paused);
+
 let lastTime = performance.now();
 function animate(now) {
     let dt = (now - lastTime) / 1000.0;
     lastTime = now;
     if (!paused) {
         time += Math.min(dt, 0.1);
-        if (LOOP_AT && time > LOOP_AT) time = 0;
+        if (LOOP_AT && time > LOOP_AT) time = 0; // Loops back gracefully
     }
     render(time);
     requestAnimationFrame(animate);
